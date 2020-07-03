@@ -1,6 +1,6 @@
-#Deep Spatial-Temporal Graph Modeling
+# Deep Spatial-Temporal Graph Modeling
 
-This code is based on original Graph-WaveNet code ported from [code](https://github.com/sshleifer/Graph-WaveNet).
+This code is based on an original Graph-WaveNet code ported from [code](https://github.com/sshleifer/Graph-WaveNet).
 
 ## Requirements
 - python 3
