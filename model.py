@@ -46,9 +46,9 @@ class gcn(nn.Module):
         return h
 
 
-class gwnet(nn.Module):
+class origin_gwnet(nn.Module):
     def __init__(self, device, num_nodes, dropout=0.3, supports=None, gcn_bool=True, addaptadj=True, aptinit=None, in_dim=2,out_dim=12,residual_channels=32,dilation_channels=32,skip_channels=256,end_channels=512,kernel_size=2,blocks=4,layers=2):
-        super(gwnet, self).__init__()
+        super(origin_gwnet, self).__init__()
         self.dropout = dropout
         self.blocks = blocks
         self.layers = layers
@@ -91,9 +91,10 @@ class gwnet(nn.Module):
                 self.supports_len += 1
 
 
+        multiply_seq = out_dim /12
+        self.multiply_seq = int(multiply_seq)
 
-
-        for b in range(blocks):
+        for b in range(int(blocks * multiply_seq)):
             additional_scope = kernel_size - 1
             new_dilation = 1
             for i in range(layers):
@@ -154,7 +155,7 @@ class gwnet(nn.Module):
             new_supports = self.supports + [adp]
 
         # WaveNet layers
-        for i in range(self.blocks * self.layers):
+        for i in range(self.blocks * self.layers * self.multiply_seq):
 
             #            |----------------------------------------|     *residual*
             #            |                                        |
@@ -196,7 +197,6 @@ class gwnet(nn.Module):
                 x = self.residual_convs[i](x)
 
             x = x + residual[:, :, :, -x.size(3):]
-
 
             x = self.bn[i](x)
 
