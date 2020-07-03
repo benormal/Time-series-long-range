@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 import time
 import util
+import os
 import matplotlib.pyplot as plt
 from engine import trainer
 
@@ -28,6 +29,7 @@ parser.add_argument('--print_every',type=int,default=50,help='')
 #parser.add_argument('--seed',type=int,default=99,help='random seed')
 parser.add_argument('--save',type=str,default='./garage/metr',help='save path')
 parser.add_argument('--expid',type=int,default=1,help='experiment id')
+parser.add_argument('--origin', type=bool, default=False)
 
 args = parser.parse_args()
 
@@ -46,6 +48,14 @@ def main():
     supports = [torch.tensor(i).to(device) for i in adj_mx]
 
     print(args)
+    
+    if args.origin:
+        save_dir = './origin_garage_{}/metr'.format(args.seq_length)
+    else:
+        save_dir = './garage_{}/metr'.format(args.seq_length)
+        
+    if not os.path.exists(save_dir.split('/')[1]):
+        os.mkdir(save_dir.split('/')[1])
 
     if args.randomadj:
         adjinit = None
@@ -55,12 +65,9 @@ def main():
     if args.aptonly:
         supports = None
 
-
-
     engine = trainer(scaler, args.in_dim, args.seq_length, args.num_nodes, args.nhid, args.dropout,
                          args.learning_rate, args.weight_decay, device, supports, args.gcn_bool, args.addaptadj,
-                         adjinit)
-
+                         adjinit, args.origin)
 
     print("start training...",flush=True)
     his_loss =[]
@@ -95,7 +102,6 @@ def main():
         valid_mape = []
         valid_rmse = []
 
-
         s1 = time.time()
         for iter, (x, y) in enumerate(dataloader['val_loader'].get_iterator()):
             testx = torch.Tensor(x).to(device)
@@ -121,14 +127,13 @@ def main():
 
         log = 'Epoch: {:03d}, Train Loss: {:.4f}, Train MAPE: {:.4f}, Train RMSE: {:.4f}, Valid Loss: {:.4f}, Valid MAPE: {:.4f}, Valid RMSE: {:.4f}, Training Time: {:.4f}/epoch'
         print(log.format(i, mtrain_loss, mtrain_mape, mtrain_rmse, mvalid_loss, mvalid_mape, mvalid_rmse, (t2 - t1)),flush=True)
-        torch.save(engine.model.state_dict(), args.save+"_epoch_"+str(i)+"_"+str(round(mvalid_loss,2))+".pth")
+        torch.save(engine.model.state_dict(), save_dir+"_epoch_"+str(i)+"_"+str(round(mvalid_loss,2))+".pth")
     print("Average Training Time: {:.4f} secs/epoch".format(np.mean(train_time)))
     print("Average Inference Time: {:.4f} secs".format(np.mean(val_time)))
 
     #testing
     bestid = np.argmin(his_loss)
-    engine.model.load_state_dict(torch.load(args.save+"_epoch_"+str(bestid+1)+"_"+str(round(his_loss[bestid],2))+".pth"))
-
+    engine.model.load_state_dict(torch.load(save_dir+"_epoch_"+str(bestid+1)+"_"+str(round(his_loss[bestid],2))+".pth"))
 
     outputs = []
     realy = torch.Tensor(dataloader['y_test']).to(device)
@@ -164,7 +169,7 @@ def main():
 
     log = 'On average over 12 horizons, Test MAE: {:.4f}, Test MAPE: {:.4f}, Test RMSE: {:.4f}'
     print(log.format(np.mean(amae),np.mean(amape),np.mean(armse)))
-    torch.save(engine.model.state_dict(), args.save+"_exp"+str(args.expid)+"_best_"+str(round(his_loss[bestid],2))+".pth")
+    torch.save(engine.model.state_dict(), save_dir+"_exp"+str(args.expid)+"_best_"+str(round(his_loss[bestid],2))+".pth")
 
 
 
