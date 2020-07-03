@@ -35,5 +35,5 @@ python -m scripts.gen_adj_mx  --sensor_ids_filename=data/sensor_graph/graph_sens
 ## Train Commands
 
 ```
-python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj
+python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj --seq_length 12
 ```
