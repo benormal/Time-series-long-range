@@ -55,8 +55,12 @@ class gwnet(nn.Module):
         self.gcn_bool = gcn_bool
         self.addaptadj = addaptadj
 
-        self.filter_convs = nn.ModuleList()
-        self.gate_convs = nn.ModuleList()
+        #self.filter_convs = nn.ModuleList()
+        #self.gate_convs = nn.ModuleList()
+        self.dilate_convs1 = nn.ModuleList()
+        self.dilate_convs2 = nn.ModuleList()
+        self.dilate_convs3 = nn.ModuleList()
+        self.dilate_convs4 = nn.ModuleList()
         self.residual_convs = nn.ModuleList()
         self.skip_convs = nn.ModuleList()
         self.bn = nn.ModuleList()
@@ -100,6 +104,7 @@ class gwnet(nn.Module):
             dilation2 = 2
             for i in range(layers):
                 # dilated convolutions
+                """
                 self.filter_convs.append(nn.Conv2d(in_channels=residual_channels,
                                                    out_channels=conv_dilation_channels,
                                                    kernel_size=(1,kernel_size),dilation=dilation1))
@@ -107,7 +112,20 @@ class gwnet(nn.Module):
                 self.gate_convs.append(nn.Conv2d(in_channels=residual_channels,
                                                  out_channels=conv_dilation_channels,
                                                  kernel_size=(1, kernel_size), dilation=dilation2))
-
+                """
+                self.dilate_convs1.append(nn.Conv2d(in_channels=residual_channels,
+                                                    out_channels=8,
+                                                    kernel_size=(1, 2), dilation=1))
+                self.dilate_convs2.append(nn.Conv2d(in_channels=residual_channels,
+                                                    out_channels=8,
+                                                    kernel_size=(1, 2), dilation=2))
+                self.dilate_convs3.append(nn.Conv2d(in_channels=residual_channels,
+                                                    out_channels=8,
+                                                    kernel_size=(1, 2), dilation=3))
+                self.dilate_convs4.append(nn.Conv2d(in_channels=residual_channels,
+                                                    out_channels=8,
+                                                    kernel_size=(1, 2), dilation=4))
+                
                 # 1x1 convolution for residual connection
                 self.residual_convs.append(nn.Conv1d(in_channels=dilation_channels,
                                                      out_channels=residual_channels,
@@ -146,9 +164,7 @@ class gwnet(nn.Module):
             x = nn.functional.pad(input,(self.receptive_field-in_len,0,0,0))
         else:
             x = input
-        print(x.size())
         x = self.start_conv(x)
-        print(x.size())
         skip = 0
 
         # calculate the current adaptive adj matrix once per iteration
@@ -174,31 +190,35 @@ class gwnet(nn.Module):
             #residual = dilation_func(x, dilation, init_dilation, i)
             residual = x
             # dilated convolution
-            print(i, "th residual size:", residual.size())
-            filter = self.filter_convs[i](residual)
-            filter = torch.tanh(filter)
-            print(i, "th filter size:", filter.size()) 
-            gate_residual = F.pad(residual, (1, 0))
-            gate = self.gate_convs[i](gate_residual)
-            gate = torch.sigmoid(gate)
-            print(i, "th gate size:", gate.size())
+            #filter = self.filter_convs[i](residual)
+            #filter = torch.tanh(filter)
+            #print(i, "th filter size:", filter.size()) 
+            pad_residual1 = F.pad(residual, (1, 0))
+            pad_residual2 = F.pad(residual, (1, 1))
+            pad_residual3 = F.pad(residual, (2, 1))
+            
+            filter1 = self.dilate_convs1[i](residual)
+            filter2 = self.dilate_convs2[i](pad_residual1)
+            filter3 = self.dilate_convs3[i](pad_residual2)
+            filter4 = self.dilate_convs4[i](pad_residual3)
+            
+            #gate = self.gate_convs[i](gate_residual)
+            #gate = torch.sigmoid(gate)
+            #print(i, "th gate size:", gate.size())
             #x = filter * gate
-            x = torch.cat([filter, gate], dim=1)
-            print(i, "th x size:", x.size())
-
+            x = torch.cat([filter1, filter2, filter3, filter4], dim=1)
+            x = torch.tanh(x)
+            
             # parametrized skip connection
 
             s = x
             s = self.skip_convs[i](s)
-            print(i, "th s size:", s.size())
             try:
                 skip = skip[:, :, :,  -s.size(3):]
             except:
                 skip = 0
             skip = s + skip
-            print(i, "th skip size:", skip.size())
-
-
+            
             if self.gcn_bool and self.supports is not None:
                 if self.addaptadj:
                     x = self.gconv[i](x, new_supports)
@@ -207,18 +227,14 @@ class gwnet(nn.Module):
             else:
                 x = self.residual_convs[i](x)
 
-            print(i, "th gcon x size:", x.size())
             x = x + residual[:, :, :, -x.size(3):]
-            print(i, "th plus residul x size:", x.size())
-
-
+            
             x = self.bn[i](x)
 
         x = F.relu(skip)
-        print("relu x size:", x.size())
+        x = x[:, :, :, -1]
+        x = x.view(x.size(0), x.size(1), x.size(2), 1)
         x = F.relu(self.end_conv_1(x))
-        print("after x size:", x.size())
         x = self.end_conv_2(x)
-        print("last x size:", x.size())
         return x
 

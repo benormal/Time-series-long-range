@@ -19,9 +19,7 @@ class trainer():
         #output = [batch_size,12,num_nodes,1]
         real = torch.unsqueeze(real_val,dim=1)
         predict = self.scaler.inverse_transform(output)
-        print("predict size:", predict.size())
-        print("real size:", real.size())
-
+        
         loss = self.loss(predict, real, 0.0)
         loss.backward()
         if self.clip is not None:
