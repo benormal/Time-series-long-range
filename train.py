@@ -29,7 +29,7 @@ parser.add_argument('--print_every',type=int,default=50,help='')
 #parser.add_argument('--seed',type=int,default=99,help='random seed')
 parser.add_argument('--save',type=str,default='./garage/metr',help='save path')
 parser.add_argument('--expid',type=int,default=1,help='experiment id')
-parser.add_argument('--origin', type=bool, default=False)
+parser.add_argument('--origin', type=int, default=0)
 
 args = parser.parse_args()
 
@@ -49,11 +49,12 @@ def main():
 
     print(args)
     
-    if args.origin:
+    if args.origin==1:
         save_dir = './origin_garage_{}/metr'.format(args.seq_length)
     else:
         save_dir = './garage_{}/metr'.format(args.seq_length)
         
+    print(save_dir)
     if not os.path.exists(save_dir.split('/')[1]):
         os.mkdir(save_dir.split('/')[1])
 
@@ -157,7 +158,7 @@ def main():
     amae = []
     amape = []
     armse = []
-    for i in range(12):
+    for i in range(args.seq_length):
         pred = scaler.inverse_transform(yhat[:,:,i])
         real = realy[:,:,i]
         metrics = util.metric(pred,real)

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from toy_model import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--device',type=str,default='cuda:3',help='')
@@ -25,6 +26,7 @@ parser.add_argument('--dropout',type=float,default=0.3,help='dropout rate')
 parser.add_argument('--weight_decay',type=float,default=0.0001,help='weight decay rate')
 parser.add_argument('--checkpoint',type=str,help='')
 parser.add_argument('--plotheatmap',type=str,default='True',help='')
+parser.add_argument('--origin', type=int, default=0)
 
 
 args = parser.parse_args()
@@ -45,11 +47,17 @@ def main():
     if args.aptonly:
         supports = None
 
-    model =  gwnet(device, args.num_nodes, args.dropout, supports=supports, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, aptinit=adjinit)
+    if args.origin==1:
+        model = origin_gwnet(device, args.num_nodes, args.dropout, supports=supports, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, aptinit=adjinit, out_dim=args.seq_length)
+        name = "origin_{}_".format(args.seq_length)
+    else:
+        model = gwnet(device, args.num_nodes, args.dropout, supports=supports, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, aptinit=adjinit, out_dim=args.seq_length)
+        name = "our_{}_".format(args.seq_length)
+        
+    
     model.to(device)
     model.load_state_dict(torch.load(args.checkpoint))
     model.eval()
-
 
     print('model load successfully')
 
@@ -73,7 +81,7 @@ def main():
     amae = []
     amape = []
     armse = []
-    for i in range(12):
+    for i in range(args.seq_length):
         pred = scaler.inverse_transform(yhat[:,:,i])
         real = realy[:,:,i]
         metrics = util.metric(pred,real)
@@ -95,7 +103,7 @@ def main():
         adp = adp*(1/np.max(adp))
         df = pd.DataFrame(adp)
         sns.heatmap(df, cmap="RdYlBu")
-        plt.savefig("./emb"+ '.pdf')
+        plt.savefig("./{}emb".format(name)+ '.pdf')
 
     y12 = realy[:,99,11].cpu().detach().numpy()
     yhat12 = scaler.inverse_transform(yhat[:,99,11]).cpu().detach().numpy()
@@ -104,7 +112,7 @@ def main():
     yhat3 = scaler.inverse_transform(yhat[:,99,2]).cpu().detach().numpy()
 
     df2 = pd.DataFrame({'real12':y12,'pred12':yhat12, 'real3': y3, 'pred3':yhat3})
-    df2.to_csv('./wave.csv',index=False)
+    df2.to_csv('./{}wave.csv'.format(name),index=False)
 
 
 if __name__ == "__main__":
