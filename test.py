@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import torch.nn as nn
 from toy_model import *
 
 parser = argparse.ArgumentParser()
@@ -70,6 +71,7 @@ def main():
     for iter, (x, y) in enumerate(dataloader['test_loader'].get_iterator()):
         testx = torch.Tensor(x).to(device)
         testx = testx.transpose(1,3)
+        testx = nn.functional.pad(testx,(1,0,0,0))
         with torch.no_grad():
             preds = model(testx).transpose(1,3)
         outputs.append(preds.squeeze())

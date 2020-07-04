@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import numpy as np
 import argparse
 import time
@@ -52,7 +53,7 @@ def main():
     if args.origin==1:
         save_dir = './origin_garage_{}/metr'.format(args.seq_length)
     else:
-        save_dir = './garage_{}/metr'.format(args.seq_length)
+        save_dir = './garage_last_{}/metr'.format(args.seq_length)
         
     print(save_dir)
     if not os.path.exists(save_dir.split('/')[1]):
@@ -143,6 +144,7 @@ def main():
     for iter, (x, y) in enumerate(dataloader['test_loader'].get_iterator()):
         testx = torch.Tensor(x).to(device)
         testx = testx.transpose(1,3)
+        testx = nn.functional.pad(testx,(1,0,0,0))
         with torch.no_grad():
             preds = engine.model(testx).transpose(1,3)
         outputs.append(preds.squeeze())
@@ -168,8 +170,8 @@ def main():
         amape.append(metrics[1])
         armse.append(metrics[2])
 
-    log = 'On average over 12 horizons, Test MAE: {:.4f}, Test MAPE: {:.4f}, Test RMSE: {:.4f}'
-    print(log.format(np.mean(amae),np.mean(amape),np.mean(armse)))
+    log = 'On average over {} horizons, Test MAE: {:.4f}, Test MAPE: {:.4f}, Test RMSE: {:.4f}'
+    print(log.format(args.seq_length, np.mean(amae),np.mean(amape),np.mean(armse)))
     torch.save(engine.model.state_dict(), save_dir+"_exp"+str(args.expid)+"_best_"+str(round(his_loss[bestid],2))+".pth")
 
 
