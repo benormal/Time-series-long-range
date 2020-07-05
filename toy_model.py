@@ -47,7 +47,7 @@ class gcn(nn.Module):
 
 
 class gwnet(nn.Module):
-    def __init__(self, device, num_nodes, dropout=0.3, supports=None, gcn_bool=True, addaptadj=True, aptinit=None, in_dim=2,out_dim=12,residual_channels=32,conv_dilation_channels=16,dilation_channels=32,skip_channels=256,end_channels=512,kernel_size=2,blocks=4,layers=1, last_feature=False):
+    def __init__(self, device, num_nodes, dropout=0.3, supports=None, gcn_bool=True, addaptadj=True, aptinit=None, in_dim=2,out_dim=12,residual_channels=32,conv_dilation_channels=16,dilation_channels=32,skip_channels=256,end_channels=512,kernel_size=2,blocks=4,layers=1, last_feature=False, compress=0):
         super(gwnet, self).__init__()
         self.dropout = dropout
         self.blocks = blocks
@@ -60,12 +60,15 @@ class gwnet(nn.Module):
         #self.gate_convs = nn.ModuleList()
         self.filter_dilate_convs1 = nn.ModuleList()
         self.filter_dilate_convs2 = nn.ModuleList()
-        self.filter_dilate_convs3 = nn.ModuleList()
-        self.filter_dilate_convs4 = nn.ModuleList()
+        #self.filter_dilate_convs3 = nn.ModuleList()
+        #self.filter_dilate_convs4 = nn.ModuleList()
         self.gate_dilate_convs1 = nn.ModuleList()
         self.gate_dilate_convs2 = nn.ModuleList()
-        self.gate_dilate_convs3 = nn.ModuleList()
-        self.gate_dilate_convs4 = nn.ModuleList()
+        #self.gate_dilate_convs3 = nn.ModuleList()
+        #self.gate_dilate_convs4 = nn.ModuleList()
+        if compress==1:
+            self.depth_compress_conv = nn.ModuleList()
+        
         self.residual_convs = nn.ModuleList()
         self.skip_convs = nn.ModuleList()
         self.bn = nn.ModuleList()
@@ -120,31 +123,36 @@ class gwnet(nn.Module):
                                                  kernel_size=(1, kernel_size), dilation=dilation2))
                 """
                 self.filter_dilate_convs1.append(nn.Conv2d(in_channels=residual_channels,
-                                                    out_channels=8,
+                                                    out_channels=32,
                                                     kernel_size=(1, 2), dilation=1))
                 self.filter_dilate_convs2.append(nn.Conv2d(in_channels=residual_channels,
-                                                    out_channels=8,
+                                                    out_channels=32,
                                                     kernel_size=(1, 2), dilation=2))
-                self.filter_dilate_convs3.append(nn.Conv2d(in_channels=residual_channels,
-                                                    out_channels=8,
-                                                    kernel_size=(1, 2), dilation=3))
-                self.filter_dilate_convs4.append(nn.Conv2d(in_channels=residual_channels,
-                                                    out_channels=8,
-                                                    kernel_size=(1, 2), dilation=4))
+                #self.filter_dilate_convs3.append(nn.Conv2d(in_channels=residual_channels,
+                #                                    out_channels=8,
+                #                                    kernel_size=(1, 2), dilation=3))
+                #self.filter_dilate_convs4.append(nn.Conv2d(in_channels=residual_channels,
+                #                                    out_channels=8,
+                #                                    kernel_size=(1, 2), dilation=4))
                 
                 self.gate_dilate_convs1.append(nn.Conv1d(in_channels=residual_channels,
-                                                    out_channels=8,
+                                                    out_channels=32,
                                                     kernel_size=(1, 2), dilation=1))
                 self.gate_dilate_convs2.append(nn.Conv1d(in_channels=residual_channels,
-                                                    out_channels=8,
+                                                    out_channels=32,
                                                     kernel_size=(1, 2), dilation=2))
-                self.gate_dilate_convs3.append(nn.Conv1d(in_channels=residual_channels,
-                                                    out_channels=8,
-                                                    kernel_size=(1, 2), dilation=3))
-                self.gate_dilate_convs4.append(nn.Conv1d(in_channels=residual_channels,
-                                                    out_channels=8,
-                                                    kernel_size=(1, 2), dilation=4))
+                #self.gate_dilate_convs3.append(nn.Conv1d(in_channels=residual_channels,
+                #                                    out_channels=8,
+                #                                    kernel_size=(1, 2), dilation=3))
+                #self.gate_dilate_convs4.append(nn.Conv1d(in_channels=residual_channels,
+                #                                    out_channels=8,
+                #                                    kernel_size=(1, 2), dilation=4))
                 
+                #depth compress convolution
+                if compress==1:
+                    self.depth_compress_conv.append(nn.Conv2d(in_channels=64,
+                                                        out_channels=32,
+                                                        kernel_size=(1,1)))
                 # 1x1 convolution for residual connection
                 self.residual_convs.append(nn.Conv1d(in_channels=dilation_channels,
                                                      out_channels=residual_channels,
@@ -217,40 +225,42 @@ class gwnet(nn.Module):
             #filter = torch.tanh(filter)
             #print(i, "th filter size:", filter.size()) 
             pad_residual1 = F.pad(residual, (1, 0))
-            pad_residual2 = F.pad(residual, (1, 1))
-            pad_residual3 = F.pad(residual, (2, 1))
+            #pad_residual2 = F.pad(residual, (1, 1))
+            #pad_residual3 = F.pad(residual, (2, 1))
             
             filter1 = self.filter_dilate_convs1[i](residual)
             filter2 = self.filter_dilate_convs2[i](pad_residual1)
-            filter3 = self.filter_dilate_convs3[i](pad_residual2)
-            filter4 = self.filter_dilate_convs4[i](pad_residual3)
+            #filter3 = self.filter_dilate_convs3[i](pad_residual2)
+            #filter4 = self.filter_dilate_convs4[i](pad_residual3)
             
             filter1 = torch.tanh(filter1)
             filter2 = torch.tanh(filter2)
-            filter3 = torch.tanh(filter3)
-            filter4 = torch.tanh(filter4)
+            #filter3 = torch.tanh(filter3)
+            #filter4 = torch.tanh(filter4)
             
             gate1 = self.gate_dilate_convs1[i](residual)
             gate2 = self.gate_dilate_convs2[i](pad_residual1)
-            gate3 = self.gate_dilate_convs3[i](pad_residual2)
-            gate4 = self.gate_dilate_convs4[i](pad_residual3)
+            #gate3 = self.gate_dilate_convs3[i](pad_residual2)
+            #gate4 = self.gate_dilate_convs4[i](pad_residual3)
             
             gate1 = torch.sigmoid(gate1)
             gate2 = torch.sigmoid(gate2)
-            gate3 = torch.sigmoid(gate3)
-            gate4 = torch.sigmoid(gate4)
+            #gate3 = torch.sigmoid(gate3)
+            #gate4 = torch.sigmoid(gate4)
             
             x1 = filter1 * gate1
             x2 = filter2 * gate2
-            x3 = filter3 * gate3
-            x4 = filter4 * gate4
+            #x3 = filter3 * gate3
+            #x4 = filter4 * gate4
             
             #gate = self.gate_convs[i](gate_residual)
             #gate = torch.sigmoid(gate)
             #print(i, "th gate size:", gate.size())
             #x = filter * gate
-            x = torch.cat([x1, x2, x3, x4], dim=1)
+            x = torch.cat([x1, x2], dim=1)
             
+            #depth compress by 1x1 convolution
+            x = self.depth_compress_conv[i](x)
             # parametrized skip connection
 
             s = x
