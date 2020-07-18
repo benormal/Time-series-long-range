@@ -47,7 +47,7 @@ class gcn(nn.Module):
 
 
 class origin_gwnet(nn.Module):
-    def __init__(self, device, num_nodes, dropout=0.3, supports=None, gcn_bool=True, addaptadj=True, aptinit=None, in_dim=2,out_dim=12,residual_channels=32,dilation_channels=32,skip_channels=256,end_channels=512,kernel_size=2,blocks=4,layers=2):
+    def __init__(self, device, num_nodes, dropout=0.3, supports=None, gcn_bool=True, addaptadj=True, aptinit=None, in_dim=2,out_dim=12,residual_channels=32,dilation_channels=32,skip_channels=256,end_channels=512,kernel_size=2,blocks=4,layers=2, seq_len=12):
         super(origin_gwnet, self).__init__()
         self.dropout = dropout
         self.blocks = blocks
@@ -91,10 +91,13 @@ class origin_gwnet(nn.Module):
                 self.supports_len += 1
 
 
-        multiply_seq = out_dim /12
+        multiply_seq = seq_len /12
         self.multiply_seq = int(multiply_seq)
+        self.seq_len = seq_len
+        if self.seq_len != 12:
+            self.avg_pool = nn.AvgPool2d((1, int(1 + seq_len - 12)), 1)
 
-        for b in range(int(blocks * multiply_seq)):
+        for b in range(int(blocks)):
             additional_scope = kernel_size - 1
             new_dilation = 1
             for i in range(layers):
@@ -155,7 +158,7 @@ class origin_gwnet(nn.Module):
             new_supports = self.supports + [adp]
 
         # WaveNet layers
-        for i in range(self.blocks * self.layers * self.multiply_seq):
+        for i in range(self.blocks * self.layers):
 
             #            |----------------------------------------|     *residual*
             #            |                                        |
@@ -199,7 +202,10 @@ class origin_gwnet(nn.Module):
             x = x + residual[:, :, :, -x.size(3):]
 
             x = self.bn[i](x)
-
+            
+        if self.seq_len!=12:
+            skip = self.avg_pool(skip)
+        
         x = F.relu(skip)
         x = F.relu(self.end_conv_1(x))
         x = self.end_conv_2(x)

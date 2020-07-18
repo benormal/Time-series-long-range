@@ -32,6 +32,7 @@ parser.add_argument('--save',type=str,default='./garage/metr',help='save path')
 parser.add_argument('--expid',type=int,default=1,help='experiment id')
 parser.add_argument('--origin', type=int, default=0)
 parser.add_argument('--depth_compress', type=int, default=0)
+parser.add_argument('--out_dim', type=int, default=12)
 
 args = parser.parse_args()
 
@@ -52,9 +53,9 @@ def main():
     print(args)
     
     if args.origin==1:
-        save_dir = './origin_garage_{}/metr'.format(args.seq_length)
+        save_dir = './{}_origin_garage_{}/metr'.format(args.out_dim, args.seq_length)
     else:
-        save_dir = './garage_compress_{}/metr'.format(args.seq_length)
+        save_dir = './{}_garage_compress_{}/metr'.format(args.out_dim, args.seq_length)
         
     print(save_dir)
     if not os.path.exists(save_dir.split('/')[1]):
@@ -70,7 +71,7 @@ def main():
 
     engine = trainer(scaler, args.in_dim, args.seq_length, args.num_nodes, args.nhid, args.dropout,
                          args.learning_rate, args.weight_decay, device, supports, args.gcn_bool, args.addaptadj,
-                         adjinit, args.origin, args.depth_compress)
+                         adjinit, args.origin, args.depth_compress, args.out_dim)
 
     print("start training...",flush=True)
     his_loss =[]
@@ -161,7 +162,7 @@ def main():
     amae = []
     amape = []
     armse = []
-    for i in range(args.seq_length):
+    for i in range(args.out_dim):
         pred = scaler.inverse_transform(yhat[:,:,i])
         real = realy[:,:,i]
         metrics = util.metric(pred,real)
