@@ -3,13 +3,22 @@ from toy_model import *
 from model import *
 import util
 class trainer():
-    def __init__(self, scaler, in_dim, seq_length, num_nodes, nhid , dropout, lrate, wdecay, device, supports, gcn_bool, addaptadj, aptinit, origin, depth_compress):
+    def __init__(self, scaler, in_dim, seq_length, num_nodes, nhid , dropout, lrate, wdecay, device, supports, gcn_bool, addaptadj, aptinit, origin, depth_compress, out_dim):
         if origin==0:
             print("train our model")
-            self.model = gwnet(device, num_nodes, dropout, supports=supports, gcn_bool=gcn_bool, addaptadj=addaptadj, aptinit=aptinit, in_dim=in_dim, out_dim=seq_length, residual_channels=nhid, dilation_channels=nhid, skip_channels=nhid * 8, end_channels=nhid * 16, last_feature=True, compress=depth_compress)
-        else:
+            self.model = gwnet(device, num_nodes, dropout, supports=supports, gcn_bool=gcn_bool, addaptadj=addaptadj, 
+                               aptinit=aptinit, in_dim=in_dim, out_dim=out_dim, residual_channels=nhid, dilation_channels=nhid, 
+                               skip_channels=nhid * 8, end_channels=nhid * 16, last_feature=True, compress=depth_compress, seq_len = seq_length)
+        elif origin==1:
             print("train origin model")
-            self.model = origin_gwnet(device, num_nodes, dropout, supports=supports, gcn_bool=gcn_bool, addaptadj=addaptadj, aptinit=aptinit, in_dim=in_dim, out_dim=seq_length, residual_channels=nhid, dilation_channels=nhid, skip_channels=nhid * 8, end_channels=nhid * 16)
+            self.model = origin_gwnet(device, num_nodes, dropout, supports=supports, gcn_bool=gcn_bool, addaptadj=addaptadj, 
+                                      aptinit=aptinit, in_dim=in_dim, out_dim=out_dim, residual_channels=nhid, 
+                                      dilation_channels=nhid, skip_channels=nhid * 8, end_channels=nhid * 16, seq_len = seq_length)
+        else:
+            self.model = origin_gwnet2(device, num_nodes, dropout, supports=supports, gcn_bool=gcn_bool, addaptadj=addaptadj, 
+                                       aptinit=aptinit, in_dim=in_dim, out_dim=out_dim, residual_channels=nhid, 
+                                       dilation_channels=nhid, skip_channels=nhid * 8, end_channels=nhid * 16, 
+                                       seq_len=seq_length, parallel=True)
         self.model.to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lrate, weight_decay=wdecay)
         self.loss = util.masked_mae
