@@ -54,8 +54,8 @@ def main():
     else:
         model = gwnet(device, args.num_nodes, args.dropout, supports=supports, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, aptinit=adjinit, out_dim=args.seq_length)
         name = "our_{}_".format(args.seq_length)
-        
-    
+
+
     model.to(device)
     model.load_state_dict(torch.load(args.checkpoint))
     model.eval()
@@ -83,9 +83,14 @@ def main():
     amae = []
     amape = []
     armse = []
+    predictions = []
+    y_truths = []
+    
     for i in range(args.seq_length):
         pred = scaler.inverse_transform(yhat[:,:,i])
+        predictions.append(pred.cpu().detach().numpy())
         real = realy[:,:,i]
+        y_truths.append(real.cpu().detach().numpy())
         metrics = util.metric(pred,real)
         log = 'Evaluate best model on test data for horizon {:d}, Test MAE: {:.4f}, Test MAPE: {:.4f}, Test RMSE: {:.4f}'
         print(log.format(i+1, metrics[0], metrics[1], metrics[2]))
@@ -107,14 +112,21 @@ def main():
         sns.heatmap(df, cmap="RdYlBu")
         plt.savefig("./{}emb".format(name)+ '.pdf')
 
-    y12 = realy[:,99,11].cpu().detach().numpy()
-    yhat12 = scaler.inverse_transform(yhat[:,99,11]).cpu().detach().numpy()
+    outputs = {
+        'predictions': predictions,
+        'groundtruth': y_truths
+    }
 
-    y3 = realy[:,99,2].cpu().detach().numpy()
-    yhat3 = scaler.inverse_transform(yhat[:,99,2]).cpu().detach().numpy()
+    # y12 = realy[:,99,11].cpu().detach().numpy()
+    # yhat12 = scaler.inverse_transform(yhat[:,99,11]).cpu().detach().numpy()
+    #
+    # y3 = realy[:,99,2].cpu().detach().numpy()
+    # yhat3 = scaler.inverse_transform(yhat[:,99,2]).cpu().detach().numpy()
+    #
+    # df2 = pd.DataFrame({'real12':y12,'pred12':yhat12, 'real3': y3, 'pred3':yhat3})
+    # df2.to_csv('./{}wave.csv'.format(name),index=False)
 
-    df2 = pd.DataFrame({'real12':y12,'pred12':yhat12, 'real3': y3, 'pred3':yhat3})
-    df2.to_csv('./{}wave.csv'.format(name),index=False)
+    np.savez_compressed(args.data+"/wavenet_predictions", **outputs)
 
 
 if __name__ == "__main__":
